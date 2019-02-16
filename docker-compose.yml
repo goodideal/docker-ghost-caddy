@@ -1,0 +1,71 @@
+version: '3.3'
+
+services:
+  caddy: 
+    depends_on:
+      - ghost
+    container_name: ${CONTAINER_CADDY_NAME}
+    image: lucaslorentz/caddy-docker-proxy:alpine
+    restart: unless-stopped
+    ports:
+      - 80:80
+      - 443:443
+    command: -quic -email ${LETSENCRYPT_EMAIL} -agree=true -log stdout
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+
+  ghost:
+    depends_on:
+      - db
+    container_name: ${CONTAINER_GHOST_NAME}
+    # image: ghost:alpine
+    build: ghost
+    restart: unless-stopped
+    volumes:
+      - ${GHOST_CONTENT}:/var/lib/ghost/content
+    environment:
+      # see https://docs.ghost.org/docs/config#section-running-ghost-with-config-env-variables
+      
+      url: ${URL}
+      database__client: mysql
+      database__connection__host: ${CONTAINER_DB_NAME}
+      database__connection__port: 3306
+      database__connection__user: ${MYSQL_USER}
+      database__connection__password: ${MYSQL_PASSWORD}
+      database__connection__database: ${MYSQL_DATABASE}
+
+      storage__active: ${STORAGE}
+      storage__oss-store__accessKeyId: ${ACCESS_KEY_ID}
+      storage__oss-store__accessKeySecret: ${ACCESS_KEY_SECRET}
+      storage__oss-store__bucket: ${BUCKET}
+      storage__oss-store__region: ${REGION}
+      storage__oss-store__fileKey__prefix: ghost/
+    
+    logging:
+      options:
+        max-size: ${LOGGING_OPTIONS_MAX_SIZE:-200k}
+    labels:
+      caddy.address: ${DOMAINS}
+      caddy.targetport: "2368"
+      caddy.tls: "caddy_tls_auto"
+
+  db:
+    container_name: ${CONTAINER_DB_NAME}
+    image: mariadb:10
+    restart: unless-stopped
+    volumes:
+      - ${DB_PATH}:/var/lib/mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    healthcheck:
+      test: ["CMD", "mysqladmin" ,"ping", "-h", "localhost", "-p${MYSQL_ROOT_PASSWORD}"]
+      timeout: 20s
+      retries: 10
+
+networks:
+    default:
+       external:
+         name: ${NETWORK}
