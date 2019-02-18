@@ -12,6 +12,7 @@ services:
       - 80:80/udp
       - 443:443/tcp
       - 443:443/udp
+      - 2015:2015
     command: -quic -email ${LETSENCRYPT_EMAIL} -agree=true -log stdout
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
@@ -21,11 +22,12 @@ services:
     depends_on:
       - db
     container_name: ${CONTAINER_GHOST_NAME}
-    # image: ghost:alpine
-    build: ghost
+    image: ghost:alpine
     restart: unless-stopped
     volumes:
       - ${GHOST_CONTENT}:/var/lib/ghost/content
+    env_file:
+      - ./storage.env
     environment:
       # see https://docs.ghost.org/docs/config#section-running-ghost-with-config-env-variables
       
@@ -36,13 +38,6 @@ services:
       database__connection__user: ${MYSQL_USER}
       database__connection__password: ${MYSQL_PASSWORD}
       database__connection__database: ${MYSQL_DATABASE}
-
-      storage__active: ${STORAGE}
-      storage__ghost-oss-store__accessKeyId: ${ACCESS_KEY_ID}
-      storage__ghost-oss-store__accessKeySecret: ${ACCESS_KEY_SECRET}
-      storage__ghost-oss-store__bucket: ${BUCKET}
-      storage__ghost-oss-store__region: ${REGION}
-      storage__ghost-oss-store__fileKey__prefix: ghost/
     
     logging:
       options:
