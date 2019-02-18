@@ -8,12 +8,15 @@ services:
     image: lucaslorentz/caddy-docker-proxy:alpine
     restart: unless-stopped
     ports:
-      - 80:80
-      - 443:443
+      - 80:80/tcp
+      - 80:80/udp
+      - 443:443/tcp
+      - 443:443/udp
     command: -quic -email ${LETSENCRYPT_EMAIL} -agree=true -log stdout
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-
+      - ${CADDY_PATH}:/root/.caddy
+    
   ghost:
     depends_on:
       - db
@@ -35,11 +38,11 @@ services:
       database__connection__database: ${MYSQL_DATABASE}
 
       storage__active: ${STORAGE}
-      storage__oss-store__accessKeyId: ${ACCESS_KEY_ID}
-      storage__oss-store__accessKeySecret: ${ACCESS_KEY_SECRET}
-      storage__oss-store__bucket: ${BUCKET}
-      storage__oss-store__region: ${REGION}
-      storage__oss-store__fileKey__prefix: ghost/
+      storage__ghost-oss-store__accessKeyId: ${ACCESS_KEY_ID}
+      storage__ghost-oss-store__accessKeySecret: ${ACCESS_KEY_SECRET}
+      storage__ghost-oss-store__bucket: ${BUCKET}
+      storage__ghost-oss-store__region: ${REGION}
+      storage__ghost-oss-store__fileKey__prefix: ghost/
     
     logging:
       options:
@@ -47,7 +50,8 @@ services:
     labels:
       caddy.address: ${DOMAINS}
       caddy.targetport: "2368"
-      caddy.tls: "caddy_tls_auto"
+      caddy.proxy.transparent: ""
+      caddy.gzip: ""
 
   db:
     container_name: ${CONTAINER_DB_NAME}
